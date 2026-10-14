@@ -934,12 +934,14 @@ async function proxyView(env) {
 const G_ACC = "YOUR_CF_ACCOUNT_ID", G_ZONE = "YOUR_CF_ZONE_ID", G_HOST = "panel.example.com";
 const PARENT_DOMAIN = G_HOST.split(".").slice(-2).join("."); // 上级域名（用于域名健康检查文案）
 const G_API = "https://api.cloudflare.com/client/v4";
-const G_HIGH = { "8fff6f5082c0863517c62b81bdd6d80e": "all-access-permanent（交给云端 AI 工具的全权限令牌）" };
+// 把下面换成你自己的 Cloudflare API Token ID（32 位 hex，在 API Tokens 页面点开令牌可见）。
+// 高风险 = 全权限 / 长期有效，需重点盯防；可信 = 你明确授权的只读或有限权限令牌。
+const G_HIGH = { "YOUR_HIGH_RISK_TOKEN_ID": "示例：全权限长期令牌" };
 const G_TRUSTED = {
-  "0a07a87c3847f56eefde308293bd6ed7": "max-admin-permanent（Grok Bot 部署）", "72cc628eb24371851641da5c1588b754": "proxy-admin（建令牌用）",
-  "137bbce7df0bfba52651ce53c3a7cb9d": "admin-panel-readonly", "5fe8e509a2e825c13d54f4f44a09fd09": "guard-autoresponse（本功能）",
-  "4b2c03206cada541b9b6da32eed0e74c": "github-actions-backup-readonly", "5e53ff62a3e9669c46856e24a66068af": "github-actions-monitor-readonly",
-  "578ed7b9697bb33d089c88c389f7dc39": "status-analytics-readonly"
+  "YOUR_DEPLOY_TOKEN_ID": "示例：部署用", "YOUR_TOKEN_ADMIN_TOKEN_ID": "示例：建令牌专用",
+  "YOUR_ADMIN_READONLY_TOKEN_ID": "admin-panel-readonly", "YOUR_GUARD_TOKEN_ID": "guard-autoresponse（本功能）",
+  "YOUR_BACKUP_TOKEN_ID": "github-actions-backup-readonly", "YOUR_MONITOR_TOKEN_ID": "github-actions-monitor-readonly",
+  "YOUR_ANALYTICS_TOKEN_ID": "status-analytics-readonly"
 };
 const G_PROTECTED = new Set([G_HOST, "_dmarc." + G_HOST, "cf2024-1._domainkey." + G_HOST]);
 // Seed allowlist (editable on the status card). weak=1: shared egress (WARP) - fine for trusted tokens, but it never
@@ -1071,11 +1073,11 @@ function gClassify(e, allow) {
   if (String(a.type || "") === "system" || !gIsWrite(e)) return null;
   const cat = gCat(e); if (!cat) return null;
   const tok = a.token && a.token.id ? String(a.token.id) : "";
-  if (tok === "5fe8e509a2e825c13d54f4f44a09fd09") return null; // this feature's own delete / restore calls (Cloudflare Worker egress IPs)
+  if (tok === "YOUR_GUARD_TOKEN_ID") return null; // this feature's own delete / restore calls (Cloudflare Worker egress IPs)
   const tokenCls = tok ? (G_HIGH[tok] ? "high" : G_TRUSTED[tok] ? "trusted" : "unknown") : (a.context === "dash" ? "dash" : "nokey");
   const ipc = gIpClass(a.ip_address, allow, e.raw && e.raw.user_agent);
   const reasons = [];
-  if (tokenCls === "high") reasons.push("高风险令牌（交给云端 AI 工具的全权限令牌）");
+  if (tokenCls === "high") reasons.push("高风险令牌（全权限长期令牌）");
   if (tokenCls === "unknown") reasons.push("未登记的 API 令牌");
   if (ipc.k === "unknown") reasons.push(tokenCls === "dash" ? "网页控制台从陌生 IP 登录操作" : "陌生来源 IP");
   if (ipc.k === "weak" && (tokenCls === "high" || tokenCls === "unknown")) reasons.push(/自家巡检/.test(ipc.label) ? "来自 GitHub Actions 共享机房（任何人都能租用）" : "来自共享 WARP 出口");
@@ -1268,7 +1270,7 @@ async function guardScanApi(request, env) {
       if (!cur.success || !/^guard-test-/.test(String(cur.result && cur.result.name))) return json({ ok: false, error: "test record must exist and be named guard-test-*" }, 400);
       const r = cur.result;
       opts.inject = { _test: true, id: "test-" + crypto.randomUUID(), action: { type: "create", description: "Create DNS Record", result: "success", time: new Date().toISOString() },
-        actor: { type: "user", context: "api_token", ip_address: "203.0.113.9", token: { id: "8fff6f5082c0863517c62b81bdd6d80e", name: "all-access-permanent-20261008-2252" } },
+        actor: { type: "user", context: "api_token", ip_address: "203.0.113.9", token: { id: "YOUR_HIGH_RISK_TOKEN_ID", name: "example-token-name" } },
         raw: { method: "POST", uri: "/zones/" + G_ZONE + "/dns_records", status_code: 200 },
         resource: { product: "dns_records", request: { type: r.type, name: r.name.split(".")[0], content: r.content }, response: { id: r.id, type: r.type, name: r.name, content: r.content } } };
     }
@@ -1519,7 +1521,7 @@ async function cvSnapshot(env, raw, source) {
 // Hourly (from the 5-minute cron, when >= 55 min since the last scan) + on demand (POST /api/leak-scan, CI key).
 // Reads Cloudflare GraphQL httpRequestsAdaptiveGroups for the proxy UUID path (/<uuid> and /<uuid>/*), path taken from the
 // cfnext KV config at run time (never stored in a rule / log). Free plan: no ASN -> datacenter = CIDR / prefix guess.
-// "Self" = guard allowlist (Grok Bot box, your home / VPN / Hako exits, proxy exit), IPs that logged into the workbench (30 d),
+// "Self" = guard allowlist (your trusted machines, home / VPN / proxy exits), IPs that logged into the workbench (30 d),
 // GitHub Actions ranges, current outbound-pool exit IPs. Distinct = IPv4 address / IPv6 /64.
 // Leak if: > LK_IPS distinct non-self networks in 24 h, or >= LK_DC non-self datacenter networks in 24 h, or
 // last-hour bytes > LK_SPIKE x the 7-day hourly median AND >= LK_SPIKE_MIN. One email per incident, re-sent at most every 6 h.
@@ -1627,7 +1629,7 @@ async function leakScan(env, opts) {
       "最近 1 小时：陌生网络 " + a1.other + " 个 · 流量 " + dBytes(a1.bytes), "", "陌生 IP（前 10）："];
     for (const x of a24.top.slice(0, 10)) lines.push("  " + x.ip + (x.net !== x.ip ? "（" + x.net + "）" : "") + " · " + (x.co || "?") + " · " + x.n + " 次 · " + dBytes(x.b) + " · " + x.label);
     lines.push("", "国家分布：" + Object.entries(a24.cos).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, v]) => k + " " + v).join("，"), "",
-      "建议：先在 https://panel.example.com/admin/proxy 的「泄露检测」卡片确认这些 IP 不是你自己的设备 / VPN；如果确认不是，请让 Grok Bot 轮换 UUID（旧订阅链接会失效，客户端需要重新导入）。",
+      "建议：先在 https://panel.example.com/admin/proxy 的「泄露检测」卡片确认这些 IP 不是你自己的设备 / VPN；如果确认不是，请轮换 UUID（旧订阅链接会失效，客户端需要重新导入）。",
       "同一次泄露每 6 小时最多提醒 1 封；恢复正常后不另发邮件，记入每日报告。", "", "时间：" + fmtCN(now));
     try { await outboxMime(env, "leak", gMime("[面板告警] 订阅可能泄露：" + reasons.length + " 项异常", lines, now)); mailed = now; mailedNow = true; }
     catch (e) { mailErr = String(e && e.message || e).slice(0, 120); }
@@ -1859,7 +1861,7 @@ async function mailDeliveryOld_unused(env, since) {
 // ======================= Mail outbox (2026-10-10) =======================
 // Outlook 拒收 Cloudflare send_email（发件域名进了 Spamhaus），所以所有提醒邮件不再走 MAIL binding，
 // 而是写进 D1 mail_outbox（status = pending），由盒子上的 relay（/workspace/mailrelay/relay.py）每 ~5 分钟取出，
-// 用 Grok Bot 邮箱 noreply@example.com 发到 Outlook，再标记 sent / failed / expired。MAIL binding 保留不动。
+// 用 noreply@example.com 发到你的邮箱，再标记 sent / failed / expired。
 var OBX_SQL = "CREATE TABLE IF NOT EXISTS mail_outbox (id INTEGER PRIMARY KEY AUTOINCREMENT, created_at INTEGER NOT NULL, kind TEXT NOT NULL, subject TEXT NOT NULL, text TEXT NOT NULL, html TEXT, status TEXT NOT NULL DEFAULT 'pending', sent_at INTEGER, error TEXT)";
 function obxB64d(s) {
   const bin = atob(String(s || "").replace(/\s+/g, ""));
