@@ -154,7 +154,7 @@ Secrets are set with `wrangler secret put <NAME>` inside each worker's directory
 
 | Name | Type | Purpose |
 |---|---|---|
-| `GH_TOKEN` | secret | GitHub personal access token with `repo` scope (reads/writes your private drive repo) |
+| `GH_TOKEN` | secret | GitHub token for your private drive repo. Recommended: fine-grained PAT limited to that one repo with **Contents: Read and write** (+ an expiration; rotate before it lapses). A classic `repo`-scope PAT also works but is broader — set an expiration and rotate it if you use one. |
 | `SVC_KEY` | secret | Same shared inter-service key |
 
 Set `OWNER` / `REPO` at the top of `workers/drive/worker.js` to your GitHub username and private repo name.
