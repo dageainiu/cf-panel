@@ -10,7 +10,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const p = url.pathname.replace(/\/+$/, "") || "/";
-    // External push from GitHub Actions (domain-guard). Not behind the portal x-svc-key gate,
+    // External push from GitHub Actions (your backup repo). Not behind the portal x-svc-key gate,
     // but authenticated by its own shared secret (x-ci-key == env.CI_REPORT_KEY, constant-time).
     if (p === "/api/ci-report") return ciReport(request, env);
     // Proxy health / outbound failover report from the same GitHub Actions job (same x-ci-key auth).
@@ -102,7 +102,7 @@ function pingAll(env, timeoutMs) {
   ]);
 }
 
-// ---- GitHub domain-guard CI push (single latest row in D1 ci_status, id=1) ----
+// ---- GitHub CI push (single latest row in D1 ci_status, id=1) ----
 const CI_MAX_BODY = 32768;
 const CI_MAX_DETAILS = 16000; // per-check JSON array (~25 checks) fits comfortably
 async function sha256(str) { return new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str))); }
@@ -141,7 +141,7 @@ async function ciReport(request, env) {
     return json({ ok: false, error: "internal error" }, 500);
   }
 }
-// ---- Daily encrypted backup (GitHub Actions domain-guard `backup` workflow, POST /api/ci-report with kind=backup) ----
+// ---- Daily encrypted backup (GitHub Actions `backup` workflow, POST /api/ci-report with kind=backup) ----
 // Stored separately in D1 backup_status (id=1) so it never overwrites the hourly monitor row. Emails only on ok <-> failed changes.
 async function backupReport(env, b) {
   const db = env.DB;
@@ -479,7 +479,7 @@ function mk(p){return String(p==null?"":p).replace(/[0-9a-f]{8}-?[0-9a-f]{4}-?[0
 function escA(s){return esc(s);} // attribute-safe: esc() already escapes & < > " '
 function ghLink(u,t,cls){u=String(u||"");if(!/^https:\/\/github\.com\//.test(u))return "";return '<a'+(cls?' class="'+escA(cls)+'"':'')+' href="'+escA(u)+'" target="_blank" rel="noopener noreferrer">'+esc(t)+'</a>';}
 function cnTime(iso){var d=new Date(iso);if(isNaN(d))return esc(iso||"—");return d.toLocaleString("zh-CN",{timeZone:"Asia/Shanghai",hour12:false})+" (UTC+8)";}
-var CI_REPO="https://github.com/dageainiu/domain-guard";
+var CI_REPO="https://github.com/YOUR_GITHUB_USER/YOUR_REPO"; // 替换成你自己的备份仓库（私有）
 function renderCI(ci){
   var el=document.getElementById("ci");
   if(!ci){el.innerHTML='<div class="empty">等待首次上报。GitHub Actions 每小时巡检一次，结果会推送到这里。 '+ghLink(CI_REPO,"打开仓库 →")+'</div>';return;}
@@ -488,7 +488,7 @@ function renderCI(ci){
   var rows='<div class="row"><span class="mut">上次巡检</span><span>'+cnTime(ci.run_at)+(isNaN(t)?'':' · '+ago(t))+'</span></div>'+
     (stale?'<div class="row"><span class="mut">上报状态</span><span style="color:var(--warn)">超过 2 小时未收到新的巡检结果</span></div>':'')+
     '<div class="row"><span class="mut">运行记录</span><span>'+(ghLink(ci.run_url,"查看本次 Actions 运行 →")||'<span class="mut">—</span>')+'</span></div>'+
-    '<div class="row"><span class="mut">仓库 / 配置备份</span><span>'+ghLink(CI_REPO,"dageainiu/domain-guard →")+'</span></div>'+
+    '<div class="row"><span class="mut">仓库 / 配置备份</span><span>'+ghLink(CI_REPO,"打开备份仓库 →")+'</span></div>'+
     (function(bk){if(!bk)return '<div class="row"><span class="mut">每日加密备份</span><span class="mut">等待首次备份（每天 03:20 UTC+8）</span></div>';var bt=new Date(bk.run_at).getTime();var old=!isNaN(bt)&&Date.now()-bt>26*3600000;return '<div class="row'+(bk.conclusion!=="pass"?' alert':'')+'"><span class="mut">每日加密备份</span><span>'+(bk.conclusion==="pass"?'<span style="color:var(--ok)">✔ 成功</span>':'<span style="color:var(--err)">✖ 失败</span>')+' · '+cnTime(bk.run_at)+(isNaN(bt)?'':' · '+ago(bt))+(old?' <span style="color:var(--warn)">（超过 26 小时没有新备份）</span>':'')+' · '+(ghLink(bk.commit_url,"提交 →")||ghLink(bk.run_url,"运行记录 →")||"")+'</span></div>';})(ci.backup)+
     (ci.issue_url?'<div class="row alert"><span>告警 Issue（未关闭）</span><span>'+ghLink(ci.issue_url,ci.issue_url.replace("https://github.com/",""))+'</span></div>':'')+
     (ci.details&&!(ci.checks&&ci.checks.length)?'<div class="row"><span class="mut">摘要</span><span class="mut" style="text-align:right;white-space:pre-wrap;max-width:70%">'+esc(ci.details)+'</span></div>':'');
@@ -686,7 +686,7 @@ load();
 </script>
 </body></html>`;
 
-// ---- Proxy health + outbound SOCKS5 failover (report pushed by GitHub Actions domain-guard monitor, hourly) ----
+// ---- Proxy health + outbound SOCKS5 failover (report pushed by GitHub Actions monitor, hourly) ----
 // GET  /api/proxy-health  (x-ci-key) -> outbound pool metadata for the CI job (no plaintext passwords; pass_enc is AES-GCM ciphertext)
 // POST /api/proxy-health  (x-ci-key) -> structured report {sub, samples, outbounds, simulated?, dry_run?}
 // Failover: if the ACTIVE outbound (the pool entry matching cfnext KV config.outboundProxy) is down and an enabled standby is up,
@@ -1001,7 +1001,7 @@ async function ghLoad(env) {
   if (!row || now - Number(row.t) >= GH_TTL) {
     let fresh = null;
     try {
-      const r = await fetch("https://api.github.com/meta", { headers: { "user-agent": "domain-guard-panel/1.0 (+https://panel.example.com)", "accept": "application/vnd.github+json" }, signal: AbortSignal.timeout(6000) });
+      const r = await fetch("https://api.github.com/meta", { headers: { "user-agent": "cf-panel/1.0 (+https://panel.example.com)", "accept": "application/vnd.github+json" }, signal: AbortSignal.timeout(6000) });
       if (r.ok) { const j = await r.json(); const a = [...(j.actions || []), ...(j.actions_macos || [])]; if (a.length > 100) fresh = a; }
     } catch (e) {}
     if (fresh) list = fresh;
@@ -1014,7 +1014,7 @@ async function ghLoad(env) {
   GH_MEM = { t: Math.min(Number(row.t) || now, now), n: (list || []).length, v4: m.v4, v6: m.v6 };
   return GH_MEM;
 }
-function isGhUa(ua) { ua = String(ua || ""); return /\+github-actions/i.test(ua) || /^domain-guard-/i.test(ua); }
+function isGhUa(ua) { ua = String(ua || ""); return /\+github-actions/i.test(ua) || /^cf-panel-/i.test(ua); }
 function isGhIp(ip) { return cidrHas(GH_MEM, ip); }
 async function gAllow(db) {
   try { await ghLoad({ DB: db }); } catch (e) {}
@@ -1278,7 +1278,7 @@ async function guardScanApi(request, env) {
 
 // ======================================================================================================
 // ---- 每日报告 (daily digest) ----
-// Triggered by GitHub Actions domain-guard `daily-report` (08:17 UTC+8) -> POST /api/daily-report (x-ci-key) with the open
+// Triggered by GitHub Actions `daily-report` (08:17 UTC+8) -> POST /api/daily-report (x-ci-key) with the open
 // GitHub alert issues; this Worker gathers the rest from D1 + Cloudflare GraphQL and sends the email through MAIL.
 // Uptime comes from D1 health_log (one row per service per 5-minute cron run, kept 30 days).
 const D_SVC = [["portal", "入口 / 工作台"], ["cfnext", "cfnext 代理面板"], ["drive", "drive 网盘"], ["otp", "otp 验证码"]];
