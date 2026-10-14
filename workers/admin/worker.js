@@ -89,15 +89,15 @@ const KNOWN = {
 // Classification (2026-10): 「自家巡检」 ONLY by GitHub Actions IP ranges (api.github.com/meta) - a UA can be forged, so a
 // GitHub-looking UA from a non-GitHub IP stays 陌生 (the UA is only mentioned in the label). WARP egress is a shared public
 // exit (yellow, never hidden by 「仅非本机来源」). Cloudflare Workers egress 2a06:98c0::/29 is 「自家（Workers）」 only when the
-// actor is our own guard token (5fe8e509, 令牌异常自动处置).
+// actor is our own guard token (YOUR_GUARD_TOKEN_ID, 令牌异常自动处置).
 const WARP_M = cidrParse(["2a09:bac0::/29", "104.28.0.0/16", "104.30.0.0/16"]);
 const CFW_M = cidrParse(["2a06:98c0::/29"]);
-const GUARD_TOKEN_ID = "5fe8e509";
+const GUARD_TOKEN_ID = "YOUR_GUARD"; // 你的 GUARD_TOKEN 的前 8 位（与 status 里 YOUR_GUARD_TOKEN_ID 对应）
 function ipInfo(ip, userIps, ua, tokenId) {
   ip = String(ip || "");
   const ghUa = isGhUa(ua);
   if (!ip) return ghUa ? { k: "self", label: "自家巡检（无 IP）" } : { k: "none", label: "（无 IP，平台内部）" };
-  if (BOX_IPS.includes(ip) || /^140\.248\.5[02]\./.test(ip) || /^2a04:4e41:/i.test(ip)) return { k: "box", label: "Grok Bot 机器" };
+  if (BOX_IPS.includes(ip) || /^140\.248\.5[02]\./.test(ip) || /^2a04:4e41:/i.test(ip)) return { k: "box", label: "你的服务器" };
   if (KNOWN[ip]) return { k: KNOWN[ip][0], label: KNOWN[ip][1] };
   if (cidrHas(CFW_M, ip) && String(tokenId || "").startsWith(GUARD_TOKEN_ID)) return { k: "self", label: "自家（Workers）" };
   if (isGhIp(ip)) return { k: "self", label: "自家巡检（GitHub Actions）" };
@@ -153,7 +153,7 @@ async function ghLoad(env) {
   if (!row || now - Number(row.t) >= GH_TTL) {
     let fresh = null;
     try {
-      const r = await fetch("https://api.github.com/meta", { headers: { "user-agent": "domain-guard-panel/1.0 (+https://panel.example.com)", "accept": "application/vnd.github+json" }, signal: AbortSignal.timeout(6000) });
+      const r = await fetch("https://api.github.com/meta", { headers: { "user-agent": "cf-panel/1.0 (+https://panel.example.com)", "accept": "application/vnd.github+json" }, signal: AbortSignal.timeout(6000) });
       if (r.ok) { const j = await r.json(); const a = [...(j.actions || []), ...(j.actions_macos || [])]; if (a.length > 100) fresh = a; }
     } catch (e) {}
     if (fresh) list = fresh;
@@ -166,7 +166,7 @@ async function ghLoad(env) {
   GH_MEM = { t: Math.min(Number(row.t) || now, now), n: (list || []).length, v4: m.v4, v6: m.v6 };
   return GH_MEM;
 }
-function isGhUa(ua) { ua = String(ua || ""); return /\+github-actions/i.test(ua) || /^domain-guard-/i.test(ua); }
+function isGhUa(ua) { ua = String(ua || ""); return /\+github-actions/i.test(ua) || /^cf-panel-/i.test(ua); }
 function isGhIp(ip) { return cidrHas(GH_MEM, ip); }
 // Cloud guess: small, conservative CIDR list. Anything else inside big shared cloud /8s is just 「云服务器」.
 const DC_LIST = [
@@ -275,14 +275,10 @@ function errCard(title, msg) { return `<div class="card"><h2>${esc(title)}</h2><
 
 // ---------- PAGE 2: tokens / secrets ----------
 const TOKEN_NOTES = {
-  "0a07a87c": ["面板部署用（Grok Bot）", "Grok Bot 部署 Worker、改 DNS/WAF 用的。永久全权限（除建令牌外），只存放在 Grok Bot 机器上。建议日后不再频繁改动时，给它设个有效期或缩小到 Workers + DNS。"],
-  "72cc628e": ["建令牌用（proxy-admin）", "唯一一个能「创建 / 删除令牌」的令牌，等同最高权限的钥匙。只在 Grok Bot 机器上，从不放进任何 Worker。平时不用时可以考虑撤销，需要时再建。"],
-  "8fff6f50": ["交给云端 AI 工具", "你交给云端 AI 工具（沙箱）的永久全权限令牌。那个工具只需要管隧道和 DNS，建议换成只含 Tunnel + DNS 权限、只限本域名的新令牌，然后撤销这个。"],
-  "137bbce7": ["本页面只读令牌 · ADMIN_RO_TOKEN", "管理页（本页面）专用，只读、1 年有效，存在 admin Worker 的加密变量里。正常。"],
-  "578ed7b9": ["状态面板 · CF_ANALYTICS_TOKEN", "状态面板读流量分析用，只读、只限本域名。建议加一个有效期。"],
-  "5e53ff62": ["GitHub 巡检（domain-guard）", "GitHub Actions 每小时巡检用，只读、只限本域名。建议加一个有效期。"],
-  "4b2c0320": ["GitHub 每日备份 · CF_BACKUP_TOKEN", "GitHub Actions 每天 03:20 备份配置用，只读（Workers / DNS / 防火墙 / KV / D1 读取）。存在 domain-guard 仓库的加密变量里。正常，建议加一个有效期。"],
-  "5fe8e509": ["令牌异常自动处置 · GUARD_TOKEN", "status Worker 的「令牌异常自动处置」用：读审计日志 + 只能改本域名 DNS（用于自动删除可疑记录和一键恢复），1 年有效。它的操作来自 Cloudflare Workers 出口 IP（2a06:98c0:…），面板里标为「自家（Workers）」。正常。"]
+  // 示例条目：key 是 Token ID 的前 8 位（在 Cloudflare API Tokens 页面可见），value 是 [名称, 说明]。
+  // 部署后按你自己的令牌清单填写。
+  "aaaaaaaa": ["部署用令牌（示例）", "示例：部署 Worker、改 DNS 用。建议设有效期、最小权限。"],
+  "bbbbbbbb": ["只读令牌（示例）", "示例：管理页只读，存在 Worker 加密变量里。"]
 };
 function tokenNote(id) { return TOKEN_NOTES[String(id).slice(0, 8)] || null; }
 function scopeSummary(policies) {
@@ -315,7 +311,7 @@ async function pageTokens(env, cfg) {
     const t = e.action && e.action.time; if (t && t > u.last) u.last = t;
   }
   let body = `<p class="sub">列出账户里所有 Cloudflare API 令牌和每个 Worker 保存的密钥<b>名称</b>（不含任何值），并按风险标注。</p>`;
-  body += `<p class="note">撤销 / 轮换令牌需要「API Tokens Write」权限，而 Cloudflare 不允许把这种权限再细分给子令牌。为了不把能建令牌的钥匙放进网页后台，这里<b>不提供一键撤销</b>，按钮会打开 Cloudflare 官方的令牌页面，由你在那里操作（或者直接让 Grok Bot 做）。</p>`;
+  body += `<p class="note">撤销 / 轮换令牌需要「API Tokens Write」权限，而 Cloudflare 不允许把这种权限再细分给子令牌。为了不把能建令牌的钥匙放进网页后台，这里<b>不提供一键撤销</b>，按钮会打开 Cloudflare 官方的令牌页面，由你在那里操作（或者让管理员做）。</p>`;
   const rows = [];
   const all = [];
   if (ut && ut.success) for (const t of ut.result || []) all.push(Object.assign({ _kind: "用户令牌" }, t));
@@ -348,7 +344,7 @@ async function pageTokens(env, cfg) {
 <td class="mono">${esc(short(t.id))}</td><td>${t.status === "active" ? badge("grn", "有效") : badge("gray", t.status)}</td>
 <td class="small">${esc(t8(t.issued_on))}</td><td class="small">${esc(t8(t.last_used_on))}<div class="muted">${esc(ago(t.last_used_on))}</div></td><td class="small">${t.expires_on ? esc(t8(t.expires_on)) : "永不"}</td>
 <td class="small"><b>${groups}</b> 项权限 · ${esc(scopeSummary(t.policies).join("、"))}<div class="muted">${esc(names.slice(0, 4).join("、"))}${names.length > 4 ? " 等" : ""}</div></td>
-<td>${b.join("")}${usage}<div class="small mt">${esc(note ? note[1] : (groups >= 300 ? "权限过大，确认用途后建议缩小权限或撤销。" : "面板没有登记这个令牌。请先确认是不是你自己（或 Grok Bot）新建的；确认不认识再撤销。"))}</div>
+<td>${b.join("")}${usage}<div class="small mt">${esc(note ? note[1] : (groups >= 300 ? "权限过大，确认用途后建议缩小权限或撤销。" : "面板没有登记这个令牌。请先确认是不是你自己新建的；确认不认识再撤销。"))}</div>
 <div class="mt"><a class="btn ghost" href="https://dash.cloudflare.com/profile/api-tokens" target="_blank" rel="noopener noreferrer">撤销 / 轮换 ↗</a></div></td></tr>`);
   }
   body += `<div class="kpis"><div class="kpi"><span class="muted small">令牌总数</span><b>${all.length}</b></div><div class="kpi"><span class="muted small">全权限</span><b>${nFull}</b></div><div class="kpi"><span class="muted small">永不过期</span><b>${nNoExp}</b></div><div class="kpi"><span class="muted small">高风险</span><b>${nRisk}</b></div></div>`;
@@ -372,7 +368,7 @@ async function pageTokens(env, cfg) {
 }
 
 // ---------- PAGE 3: audit ----------
-const AI_TOKEN = "8fff6f50";
+const AI_TOKEN="YOUR_HIGH"; // 高风险令牌 ID 的前 8 位（与 status 里 G_HIGH 的键对应），用于审计分类
 function v1ToV2(x) {
   return { id: x.id, action: { type: (x.action && x.action.type) || "", description: (x.action && (x.action.info || x.action.type)) || "", result: x.action && x.action.result ? "success" : "failure", time: x.when },
     actor: { email: x.actor && x.actor.email, ip_address: x.actor && x.actor.ip, context: x.interface || (x.actor && x.actor.type) || "" },
@@ -591,7 +587,7 @@ async function pageProxy(env, cfg, url, request) {
     const maxWs = Math.max(1, ...dk.map(k => days[k].ws));
     body += `<div class="card"><h2>每日统计</h2><div class="tw"><table><thead><tr><th>日期（UTC+8）</th><th>订阅拉取</th><th>代理连接（101）</th><th></th><th>被拒 / 出错</th><th>流量</th></tr></thead><tbody>${dk.map(k => { const d = days[k]; const pct = Math.max(1, Math.round(d.ws / maxWs * 100)); return `<tr><td>${esc(k)}</td><td>${d.sub}</td><td>${d.ws}</td><td><progress max="100" value="${pct}"></progress></td><td>${d.other ? badge("yel", d.other) : "0"}</td><td>${esc(bytes(d.bytes))}</td></tr>`; }).join("") || `<tr><td colspan="6" class="muted">7 天内无数据</td></tr>`}</tbody></table></div></div>`;
     body += `<div class="card"><h2>谁在拉订阅</h2><div class="tw"><table><thead><tr><th>IP</th><th>国家</th><th>客户端</th><th>次数</th></tr></thead><tbody>${(st.subClients || []).map(x => { const inf = ipInfo(x.dimensions.clientIP, uips, x.dimensions.userAgent); return `<tr class="${inf.k === "unknown" ? "hl" : ""}"><td><span class="mono small">${esc(x.dimensions.clientIP)}</span><div>${ipBadge(inf)}</div></td><td>${esc(x.dimensions.clientCountryName)}</td><td>${esc(uaShort(x.dimensions.userAgent))}<div class="small muted">${esc(String(x.dimensions.userAgent || "").slice(0, 110))}</div></td><td>${x.count}</td></tr>`; }).join("") || `<tr><td colspan="4" class="muted">无</td></tr>`}</tbody></table></div><p class="small muted">包括 /…/sub 和非浏览器直接请求 UUID 路径（部分客户端这样拉订阅）。</p></div>`;
-    body += `<div class="card"><h2>代理连接来源（前 30）</h2><div class="tw"><table><thead><tr><th>IP</th><th>国家</th><th>连接数</th><th>流量</th></tr></thead><tbody>${(st.wsIps || []).map(x => { const inf = ipInfo(x.dimensions.clientIP, uips); return `<tr class="${inf.k === "unknown" ? "hl" : ""}"><td><span class="mono small">${esc(x.dimensions.clientIP)}</span><div>${ipBadge(inf)}</div></td><td>${esc(x.dimensions.clientCountryName)}</td><td>${x.count}</td><td>${esc(bytes(x.sum.edgeResponseBytes))}</td></tr>`; }).join("") || `<tr><td colspan="4" class="muted">7 天内无代理连接</td></tr>`}</tbody></table></div><p class="small muted">免费版流量分析不提供 ASN，「疑似 xx」是按云厂商公布的 IP 段推测的，拿不准时只写「云服务器」；GitHub Actions 机房 IP 标为「自家巡检」（灰色），不计入陌生。旧 UUID 曾泄露给几百个 VPS IP，如果这里出现大量红色机房 IP，说明新 UUID 也泄露了，请让 Grok Bot 轮换。</p></div>`;
+    body += `<div class="card"><h2>代理连接来源（前 30）</h2><div class="tw"><table><thead><tr><th>IP</th><th>国家</th><th>连接数</th><th>流量</th></tr></thead><tbody>${(st.wsIps || []).map(x => { const inf = ipInfo(x.dimensions.clientIP, uips); return `<tr class="${inf.k === "unknown" ? "hl" : ""}"><td><span class="mono small">${esc(x.dimensions.clientIP)}</span><div>${ipBadge(inf)}</div></td><td>${esc(x.dimensions.clientCountryName)}</td><td>${x.count}</td><td>${esc(bytes(x.sum.edgeResponseBytes))}</td></tr>`; }).join("") || `<tr><td colspan="4" class="muted">7 天内无代理连接</td></tr>`}</tbody></table></div><p class="small muted">免费版流量分析不提供 ASN，「疑似 xx」是按云厂商公布的 IP 段推测的，拿不准时只写「云服务器」；GitHub Actions 机房 IP 标为「自家巡检」（灰色），不计入陌生。旧 UUID 曾泄露给几百个 VPS IP，如果这里出现大量红色机房 IP，说明新 UUID 也泄露了，请轮换。</p></div>`;
   }
   // node health
   const e2e = hl.e2e;
@@ -895,7 +891,7 @@ async function poolPost(request, env, ctx, url, p) {
     return back("deleted");
   }
   if (p === "/admin/proxy/uuid-rotate") {
-    return csrfFail(request, "UUID 一键轮换未通过安全验证，已禁用。需要轮换请找 Grok Bot。");
+    return csrfFail(request, "UUID 一键轮换未通过安全验证，已禁用。需要轮换请联系管理员。");
   }
   if (p === "/admin/proxy/check") {
     const list = rows.filter(x => x.enabled);
@@ -1120,7 +1116,7 @@ async function uuidRotateSection(env, request) {
   // Worker under that same name. Live cfnext must not be redeployed; PATCH of plain_text U alone would also leave KV
   // config.uuid / config.path as the old value (KV overrides env.U). So the button stays disabled.
   const csrf = await csrfToken(request, env, "admin-proxy");
-  return `<div class="card" id="uuidrot"><h2>UUID 轮换</h2><p class="note">按钮已禁用：在抛开的测试 Worker 上验证「只改绑定 / 只改 KV、不重新上传代码」时，新部署的测试副本一上传就被 Cloudflare 平台以 1101（Worker threw exception / script has been killed）杀掉，连 1 行 hello 都活不下来——跟上次把线上 cfnext 搞崩是同一种现象。线上 cfnext 不能重部署，只改 env.U 也不够（KV 里的 uuid/path 会覆盖它）。<b>UUID 轮换请找 Grok Bot</b>。</p>
+  return `<div class="card" id="uuidrot"><h2>UUID 轮换</h2><p class="note">按钮已禁用：在抛开的测试 Worker 上验证「只改绑定 / 只改 KV、不重新上传代码」时，新部署的测试副本一上传就被 Cloudflare 平台以 1101（Worker threw exception / script has been killed）杀掉，连 1 行 hello 都活不下来——跟上次把线上 cfnext 搞崩是同一种现象。线上 cfnext 不能重部署，只改 env.U 也不够（KV 里的 uuid/path 会覆盖它）。<b>UUID 轮换请联系管理员</b>。</p>
 <form method="post" action="/admin/proxy/uuid-rotate"><input type="hidden" name="csrf" value="${esc(csrf)}"><input type="hidden" name="confirm" value="确认轮换"><button class="btn" type="submit" disabled title="未通过安全验证，已禁用">轮换 UUID（已禁用）</button></form>
 <p class="small muted">轮换成功后会：存配置版本 → 换新 UUID → 更新订阅路径 → 旧路径拒绝、新路径 101/200 → 把新订阅链接发到你的 Outlook。失败会自动回滚。</p></div>`;
 }
@@ -1152,7 +1148,7 @@ async function ipOptSection(env, request, url) {
     if (base.length) body += `<p class="small muted mt">对照：订阅现在下发的 20 个「内置·保底」IP，本站握手 101 通过 ${base.filter(x => x.ws_ok).length} / ${base.length} 个（它们不在国内测速榜单里，国内延迟没有公开数据）。</p>`;
   } else if (r) body += `<p class="muted">这次没有选出 IP。</p>`;
   body += `<form class="f mt" method="post" action="/admin/proxy/ip-opt-run"><input type="hidden" name="csrf" value="${esc(csrf)}"><button class="btn" type="submit"${pending ? " disabled" : ""}>${pending ? "已排队，等待运行…" : "立即优选"}</button><span class="small muted">${pending ? "排队于 " + esc(t8(q.requested_at)) + "，下一次整点巡检（约 " + esc(t8(nextHourUtc(now)).slice(11, 16)) + "）会启动，" : "点了之后由下一次整点巡检启动（约 " + esc(t8(nextHourUtc(now)).slice(11, 16)) + "，GitHub 定时任务常会晚几分钟），"}约 2 分钟跑完。</span></form>`;
-  body += `<p class="note"><b>说实话的部分：</b>GitHub 和 Cloudflare 的服务器都不在国内，<b>没法替你测「从国内连过来」有多快</b>。这里的「国内实测延迟」来自 wetest.vip 和 hostmonit 这两个公开榜单（它们在国内三网机房测的）；我们这边只验证每个候选 IP 能不能正常完成 TLS 握手、能不能打通你的代理（WebSocket 101），然后按榜单延迟排序。「GitHub→IP」那列只是参考，跟你在国内的速度无关。<br><b>目前只测量和展示，不会改你的订阅：</b>CFNext 现在的下发模式里，10 个节点固定从程序里写死的 20 个「内置·保底」IP 中挑，配置里的「优选 IP」列表根本不参与下发；要让这里的结果真正进订阅，得改订阅模式（会去掉保底节点），这一步没有你的同意不会做。想试的话找 Grok Bot。</p>`;
+  body += `<p class="note"><b>说实话的部分：</b>GitHub 和 Cloudflare 的服务器都不在国内，<b>没法替你测「从国内连过来」有多快</b>。这里的「国内实测延迟」来自 wetest.vip 和 hostmonit 这两个公开榜单（它们在国内三网机房测的）；我们这边只验证每个候选 IP 能不能正常完成 TLS 握手、能不能打通你的代理（WebSocket 101），然后按榜单延迟排序。「GitHub→IP」那列只是参考，跟你在国内的速度无关。<br><b>目前只测量和展示，不会改你的订阅：</b>CFNext 现在的下发模式里，10 个节点固定从程序里写死的 20 个「内置·保底」IP 中挑，配置里的「优选 IP」列表根本不参与下发；要让这里的结果真正进订阅，得改订阅模式（会去掉保底节点），这一步没有你的同意不会做。想试的话请联系管理员。</p>`;
   body += `</div>`;
   return body;
 }
@@ -1217,7 +1213,7 @@ async function pageGuests(env, request, url, created) {
   const hid = `<input type="hidden" name="csrf" value="${esc(csrf)}">`;
   const m = GUEST_MSG[url.searchParams.get("m") || ""];
   let body = `<p class="sub">给家人或朋友一个只读链接：他们只能看到代理订阅（链接 + 二维码）和节点是否在线，看不到工作台、代理面板、网盘、验证码、AI 助手、配置版本、令牌和审计日志。</p>`;
-  body += `<p class="note nerr"><b>访客拿到的是和你一样的订阅，撤销访客不会自动换 UUID。</b>订阅链接里就带着 UUID，对方导入客户端后，撤销邀请只能让这个网页打不开，不能让他已经导入的订阅失效；要彻底收回只能换 UUID（找 Grok Bot）。只发给你信任的人。</p>`;
+  body += `<p class="note nerr"><b>访客拿到的是和你一样的订阅，撤销访客不会自动换 UUID。</b>订阅链接里就带着 UUID，对方导入客户端后，撤销邀请只能让这个网页打不开，不能让他已经导入的订阅失效；要彻底收回只能换 UUID（联系管理员）。只发给你信任的人。</p>`;
   if (m) body += `<p class="note ${m[0]}">${esc(m[1])}</p>`;
   let script = "";
   if (created) {
