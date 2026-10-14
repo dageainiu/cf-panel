@@ -1,5 +1,7 @@
 # cf-panel
 
+English | [简体中文](README.zh-CN.md)
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-F38020?logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
 [![Deploy with Wrangler](https://img.shields.io/badge/deploy-wrangler-blue)](DEPLOY.md)
