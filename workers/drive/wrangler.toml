@@ -1,0 +1,8 @@
+name = "drive"
+main = "worker.js"
+compatibility_date = "2026-01-20"
+
+# 网盘文件存在你自己的私有 GitHub 仓库里（worker.js 顶部 OWNER / REPO 常量）。
+# Secrets（`wrangler secret put <NAME>`）：
+#   GH_TOKEN  有 repo 权限的 GitHub Token（读写网盘仓库用）
+#   SVC_KEY   与 portal 共用的内部服务互信密钥

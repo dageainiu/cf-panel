@@ -1,0 +1,22 @@
+name = "otp-panel"
+main = "worker.js"
+compatibility_date = "2026-01-20"
+
+[triggers]
+crons = ["17 3 * * *"]
+
+[ai]
+binding = "AI"
+
+[vars]
+FORWARD_TO = ""
+MS_CLIENT_ID = "YOUR_MS_CLIENT_ID"
+
+[[kv_namespaces]]
+binding = "OTP"
+id = "YOUR_KV_OTP_ID"
+
+# Secrets（`wrangler secret put <NAME>`）：
+#   MS_REFRESH_TOKEN  微软 OAuth refresh token（Mail.Read + offline_access）
+#   SVC_KEY           与 portal 共用的内部服务互信密钥
+# 首次部署后建议手动触发一次定时任务，让 token 轮换跑起来。

@@ -1,0 +1,43 @@
+name = "status"
+main = "worker.js"
+compatibility_date = "2026-01-20"
+
+[triggers]
+crons = ["*/5 * * * *"]
+
+[vars]
+CF_ZONE_ID = "YOUR_CF_ZONE_ID"
+
+[[services]]
+binding = "CFNEXT"
+service = "cfnext"
+
+[[services]]
+binding = "DRIVE"
+service = "drive"
+
+[[services]]
+binding = "OTP"
+service = "otp-panel"
+
+[[kv_namespaces]]
+binding = "CFK"
+id = "YOUR_KV_CFNEXT_ID"
+
+[[kv_namespaces]]
+binding = "LOG"
+id = "YOUR_KV_STATUS_ID"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "panel-log"
+database_id = "YOUR_D1_ID"
+
+# Secrets（`wrangler secret put <NAME>`）：
+#   SVC_KEY            与 portal 共用的内部服务互信密钥
+#   CF_ANALYTICS_TOKEN Cloudflare API Token（只读 Account Analytics）
+#   CI_REPORT_KEY      巡检回报密钥（供外部 CI 调用）
+#   CI_WRITE_KEY       巡检写操作密钥（出站切换 / DNS 恢复）
+#   CONFIG_KEY         配置加密密钥
+#   GUARD_TOKEN        令牌异常自动处置用 Token
+#   OUTBOUND_POOL_JSON / OUTBOUND_POOL_KEY  出站代理池（同 admin）

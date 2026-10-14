@@ -1,0 +1,24 @@
+name = "admin"
+main = "worker.js"
+compatibility_date = "2026-01-20"
+
+[[services]]
+binding = "CFNEXT"
+service = "cfnext"
+
+[[kv_namespaces]]
+binding = "CFK"
+id = "YOUR_KV_CFNEXT_ID"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "panel-log"
+database_id = "YOUR_D1_ID"
+
+# Secrets（`wrangler secret put <NAME>`）：
+#   SVC_KEY            与 portal 共用的内部服务互信密钥
+#   ADMIN_RO_TOKEN     管理页只读令牌
+#   CONFIG_KEY         CFNext 配置版本加密密钥
+#   CSRF_KEY           管理页表单防伪签名密钥
+#   OUTBOUND_POOL_JSON 出站代理池配置（JSON，见 DEPLOY.md）
+#   OUTBOUND_POOL_KEY  出站代理池加密密钥

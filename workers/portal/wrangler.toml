@@ -1,0 +1,48 @@
+name = "portal"
+main = "worker.js"
+compatibility_date = "2026-01-20"
+
+# 对外入口：部署后在 Cloudflare 后台给这个 Worker 绑定你的自定义域名，
+# 或使用 workers.dev 地址。详见 DEPLOY.md。
+
+[[services]]
+binding = "ADMIN"
+service = "admin"
+
+[[services]]
+binding = "CFNEXT"
+service = "cfnext"
+
+[[services]]
+binding = "DRIVE"
+service = "drive"
+
+[[services]]
+binding = "OTP"
+service = "otp-panel"
+
+[[services]]
+binding = "STATUS"
+service = "status"
+
+[[kv_namespaces]]
+binding = "CFK"
+id = "YOUR_KV_CFNEXT_ID"
+
+[[kv_namespaces]]
+binding = "LOG"
+id = "YOUR_KV_STATUS_ID"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "panel-log"
+database_id = "YOUR_D1_ID"
+
+# Secrets（用 `wrangler secret put <NAME>` 逐个设置，见 DEPLOY.md）：
+#   PASSWORD        工作台登录密码
+#   SESSION_SECRET  登录会话签名密钥（随机 32 字节）
+#   SVC_KEY         内部服务互信密钥（portal/admin/status/drive/otp-panel 共用同一个值）
+#   ADMIN_SVC_KEY   管理后台内部互信密钥
+#   TOTP_KEY        两步验证密钥（加密 TOTP 密钥用）
+#   TURNSTILE_SECRET Cloudflare Turnstile 密钥（登录人机验证）
+#   PANEL           代理面板路径回退值（实际以 KV config.path 为准）
