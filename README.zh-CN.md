@@ -154,7 +154,7 @@ cd workers/portal && wrangler secret put PASSWORD
 
 | 名称 | 类型 | 用途 |
 |---|---|---|
-| `GH_TOKEN` | secret | 有 `repo` 权限的 GitHub Personal Access Token（读写网盘仓库用） |
+| `GH_TOKEN` | secret | 读写网盘仓库的 GitHub Token。推荐 fine-grained PAT：只选你的私有网盘仓库，Repository 权限仅 **Contents: Read and write**，并设有效期、到期前轮换。classic `repo` 权限的 PAT 也能用，但范围更宽，用了记得设有效期、定期轮换。 |
 | `SVC_KEY` | secret | 同上，共用的内部互信密钥 |
 
 `workers/drive/worker.js` 顶部的 `OWNER` / `REPO` 改成你的 GitHub 用户名和私有仓库名。
