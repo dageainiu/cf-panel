@@ -63,7 +63,7 @@ for k in SVC_KEY CF_ANALYTICS_TOKEN CI_REPORT_KEY CI_WRITE_KEY CONFIG_KEY GUARD_
 
 # drive
 cd ../drive
-wrangler secret put GH_TOKEN   # 有 repo 权限的 GitHub Personal Access Token
+wrangler secret put GH_TOKEN   # 推荐 fine-grained PAT（单仓库 Contents: Read and write），见下方说明
 wrangler secret put SVC_KEY    # 同 $SVC
 
 # otp-panel
@@ -71,6 +71,14 @@ cd ../otp-panel
 wrangler secret put SVC_KEY           # 同 $SVC
 wrangler secret put MS_REFRESH_TOKEN  # 见第 4 步
 ```
+
+**GH_TOKEN（drive 网盘用）——推荐 fine-grained PAT，最小权限：**
+1. GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token；
+2. Repository access 选 "Only select repositories"，只勾你的私有网盘仓库；
+3. Permissions → Repository permissions → **Contents** 设为 **Read and write**（drive 只调 Contents API 和 Git Database API——读文件/列表要 read，建 blob、tree、commit，更新 ref，删除文件要 write；fine-grained 下 Git Database 同样归 Contents 管）；
+4. 设个有效期（如 90 天），到期前重新生成并 `wrangler secret put GH_TOKEN` 轮换。
+
+兼容方案：classic PAT（`repo` scope）也能用，但能读写你名下所有仓库，权限更宽——建议同样设有效期、定期轮换。
 
 ## 4. 微软 OAuth（验证码功能用）
 
