@@ -4,5 +4,8 @@ compatibility_date = "2026-01-20"
 
 # 网盘文件存在你自己的私有 GitHub 仓库里（worker.js 顶部 OWNER / REPO 常量）。
 # Secrets（`wrangler secret put <NAME>`）：
-#   GH_TOKEN  有 repo 权限的 GitHub Token（读写网盘仓库用）
+#   GH_TOKEN  读写网盘仓库的 GitHub Token。推荐 fine-grained PAT：只选你的私有网盘仓库，
+#             Repository 权限仅 Contents: Read and write（drive 只调 Contents API 和 Git Database
+#             API，后者在 fine-grained 下同样归 Contents 管），并设个有效期，到期前轮换。
+#             classic PAT（repo scope）也能用，但能读写你名下所有仓库，权限更宽。
 #   SVC_KEY   与 portal 共用的内部服务互信密钥
