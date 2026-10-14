@@ -33,10 +33,16 @@ export default {
 
 async function loadCodes(env) {
   const token = await accessToken(env);
-  const res = await fetch("https://graph.microsoft.com/v1.0/me/messages?$top=15&$select=id,subject,from,receivedDateTime,bodyPreview&$orderby=receivedDateTime%20desc", { headers: { Authorization: "Bearer " + token } });
+  const hdrs = { headers: { Authorization: "Bearer " + token } };
+  const [meRes, res] = await Promise.all([
+    fetch("https://graph.microsoft.com/v1.0/me?$select=mail,userPrincipalName", hdrs),
+    fetch("https://graph.microsoft.com/v1.0/me/messages?$top=15&$select=id,subject,from,receivedDateTime,bodyPreview&$orderby=receivedDateTime%20desc", hdrs)
+  ]);
   if (!res.ok) throw new Error("Graph " + res.status);
   const body = await res.json();
-  return { ok: true, mailbox: "<EMAIL>", items: (body.value || []).map(extract) };
+  let mailbox = "<EMAIL>";
+  try { const me = await meRes.json(); mailbox = me.mail || me.userPrincipalName || mailbox; } catch (e) {}
+  return { ok: true, mailbox, items: (body.value || []).map(extract) };
 }
 
 async function loadMessage(env, id) {
