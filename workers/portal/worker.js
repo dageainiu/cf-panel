@@ -2871,7 +2871,7 @@ async function tfaSetup(request, env, ctx, url) {
           await adminLog(env, request, "totp_enroll");
         } catch (e) {
         }
-        if (ctx && ctx.waitUntil) ctx.waitUntil(mailSend(env, "[\u9762\u677F] \u5DF2\u5F00\u542F\u4E24\u6B65\u9A8C\u8BC1", ["\u5DE5\u4F5C\u53F0 panel.example.com \u5DF2\u5F00\u542F\u4E24\u6B65\u9A8C\u8BC1\uFF1A\u4EE5\u540E\u767B\u5F55\u9700\u8981\u300C\u5BC6\u7801 + \u624B\u673A\u9A8C\u8BC1\u5668 6 \u4F4D\u52A8\u6001\u7801\u300D\u3002", "\u5DF2\u751F\u6210 10 \u4E2A\u4E00\u6B21\u6027\u6062\u590D\u7801\uFF08\u53EA\u5728\u7ED1\u5B9A\u9875\u9762\u663E\u793A\u8FC7\u4E00\u6B21\uFF09\u3002\u5176\u4ED6\u5DF2\u767B\u5F55\u7684\u8BBE\u5907\u5DF2\u5168\u90E8\u4E0B\u7EBF\u3002", "", ...whoLines(request), "", "\u5982\u679C\u4E0D\u662F\u4F60\u672C\u4EBA\u64CD\u4F5C\uFF0C\u8BF7\u7ACB\u523B\u8054\u7CFB Grok Bot\u3002"]).catch(() => {
+        if (ctx && ctx.waitUntil) ctx.waitUntil(mailSend(env, "[\u9762\u677F] \u5DF2\u5F00\u542F\u4E24\u6B65\u9A8C\u8BC1", ["\u5DE5\u4F5C\u53F0 panel.example.com \u5DF2\u5F00\u542F\u4E24\u6B65\u9A8C\u8BC1\uFF1A\u4EE5\u540E\u767B\u5F55\u9700\u8981\u300C\u5BC6\u7801 + \u624B\u673A\u9A8C\u8BC1\u5668 6 \u4F4D\u52A8\u6001\u7801\u300D\u3002", "\u5DF2\u751F\u6210 10 \u4E2A\u4E00\u6B21\u6027\u6062\u590D\u7801\uFF08\u53EA\u5728\u7ED1\u5B9A\u9875\u9762\u663E\u793A\u8FC7\u4E00\u6B21\uFF09\u3002\u5176\u4ED6\u5DF2\u767B\u5F55\u7684\u8BBE\u5907\u5DF2\u5168\u90E8\u4E0B\u7EBF\u3002", "", ...whoLines(request), "", "\u5982\u679C\u4E0D\u662F\u4F60\u672C\u4EBA\u64CD\u4F5C\uFF0C\u8BF7\u7ACB\u523B\u68C0\u67E5\u4F60\u7684\u8D26\u6237\u3002"]).catch(() => {
         }));
         const txt = "panel.example.com \u5DE5\u4F5C\u53F0 \xB7 \u4E24\u6B65\u9A8C\u8BC1\u6062\u590D\u7801\r\n\u751F\u6210\u65F6\u95F4\uFF1A" + laFmt(now) + "\r\n\u6BCF\u4E2A\u53EA\u80FD\u7528\u4E00\u6B21\u3002\u624B\u673A\u4E22\u4E86 / \u9A8C\u8BC1\u5668\u5220\u4E86\u65F6\uFF0C\u5728\u52A8\u6001\u7801\u90A3\u4E00\u6B65\u8F93\u5165\u5176\u4E2D\u4E00\u4E2A\u5373\u53EF\u767B\u5F55\u3002\r\n\r\n" + codes.join("\r\n") + "\r\n";
         const res = render(`<h1 class="ok">\u2714 \u4E24\u6B65\u9A8C\u8BC1\u5DF2\u5F00\u542F</h1><p>\u4E0B\u9762\u662F <b>10 \u4E2A\u4E00\u6B21\u6027\u6062\u590D\u7801</b>\u3002\u624B\u673A\u4E22\u4E86\u6216\u9A8C\u8BC1\u5668\u88AB\u5220\u65F6\uFF0C\u5728\u8F93\u5165\u52A8\u6001\u7801\u90A3\u4E00\u6B65\u586B\u5176\u4E2D\u4E00\u4E2A\u5C31\u80FD\u767B\u5F55\uFF08\u6BCF\u4E2A\u53EA\u80FD\u7528\u4E00\u6B21\uFF09\u3002<b>\u53EA\u663E\u793A\u8FD9\u4E00\u6B21</b>\uFF0C\u8BF7\u73B0\u5728\u5C31\u4E0B\u8F7D\u6216\u590D\u5236\uFF0C\u5B58\u5230\u5BC6\u7801\u7BA1\u7406\u5668 / \u8BB0\u4E8B\u672C\u91CC\uFF08\u4E0D\u8981\u53EA\u5B58\u5728\u8FD9\u53F0\u624B\u673A\u4E0A\uFF09\u3002</p>
@@ -2927,7 +2927,7 @@ async function tfaSetup(request, env, ctx, url) {
   return render(`<h1 class="ok">\u2714 \u4E24\u6B65\u9A8C\u8BC1\u5DF2\u5F00\u542F</h1>${status}<p>\u5F00\u542F\u4E8E ${escH(laFmt(Number(row2.created_at) || 0))}\u3002\u5269\u4F59\u53EF\u7528\u6062\u590D\u7801\uFF1A<b>${left}</b> \u4E2A${left <= 3 ? "\uFF08\u5FEB\u7528\u5B8C\u4E86\uFF0C\u5EFA\u8BAE\u91CD\u7F6E\u540E\u91CD\u65B0\u7ED1\u5B9A\u4EE5\u751F\u6210\u65B0\u7684\u6062\u590D\u7801\uFF09" : ""}\u3002</p>
 <hr><h2 style="font-size:18px;margin:0 0 6px">\u91CD\u7F6E\u4E24\u6B65\u9A8C\u8BC1</h2><p>\u6362\u624B\u673A\u3001\u9A8C\u8BC1\u5668\u4E22\u4E86\u65F6\u7528\u3002\u9700\u8981 <b>\u5F53\u524D\u52A8\u6001\u7801\u6216\u4E00\u4E2A\u6062\u590D\u7801</b>\uFF0C\u518D\u52A0 <b>\u90AE\u7BB1\u9A8C\u8BC1\u7801</b>\u3002\u91CD\u7F6E\u540E\u4E24\u6B65\u9A8C\u8BC1\u5173\u95ED\uFF0C\u53EF\u4EE5\u91CD\u65B0\u7ED1\u5B9A\u3002</p>
 <form method="post" action="/2fa/setup" autocomplete="off">${hid}<input type="hidden" name="a" value="reset_send"><input class="code" name="factor" placeholder="\u52A8\u6001\u7801\u6216\u6062\u590D\u7801" maxlength="16" required><button class="dg">\u9A8C\u8BC1\u5E76\u53D1\u9001\u90AE\u7BB1\u9A8C\u8BC1\u7801</button></form>
-<p style="font-size:13px">\u52A8\u6001\u7801\u548C\u6062\u590D\u7801\u90FD\u6CA1\u6709\u4E86\uFF1F\u8BF7\u627E Grok Bot \u5904\u7406\u3002</p>`);
+<p style="font-size:13px">\u52A8\u6001\u7801\u548C\u6062\u590D\u7801\u90FD\u6CA1\u6709\u4E86\uFF1F\u8BF7\u8054\u7CFB\u7BA1\u7406\u5458\u5904\u7406\u3002</p>`);
 }
 // 2026-10-10: Outlook 拒收本域名发出的所有邮件（550 5.7.1 MailFrom domain is listed in Spamhaus）。MAIL.send() 成功只代表
 // Cloudflare 收下，真正投递结果要查 Email Routing 日志（status worker /api/mail-delivery）。页面如实显示结果，并提供「登录密码确认」备用。
@@ -3074,7 +3074,7 @@ async function guestPage(request, env, ctx, url) {
 // ======================= Mail outbox (2026-10-10) =======================
 // Outlook 拒收 Cloudflare send_email（发件域名进了 Spamhaus），所以所有提醒邮件不再走 MAIL binding，
 // 而是写进 D1 mail_outbox（status = pending），由盒子上的 relay（/workspace/mailrelay/relay.py）每 ~5 分钟取出，
-// 用 Grok Bot 邮箱 noreply@example.com 发到 Outlook，再标记 sent / failed / expired。MAIL binding 保留不动。
+// 用 noreply@example.com 发到你的邮箱。
 var OBX_SQL = "CREATE TABLE IF NOT EXISTS mail_outbox (id INTEGER PRIMARY KEY AUTOINCREMENT, created_at INTEGER NOT NULL, kind TEXT NOT NULL, subject TEXT NOT NULL, text TEXT NOT NULL, html TEXT, status TEXT NOT NULL DEFAULT 'pending', sent_at INTEGER, error TEXT)";
 function obxB64d(s) {
   const bin = atob(String(s || "").replace(/\s+/g, ""));
