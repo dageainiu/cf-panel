@@ -10,6 +10,7 @@
 一套完全跑在 [Cloudflare Workers](https://workers.cloudflare.com/) 上的**个人面板系统**——不用 VPS、不用 Docker、不用维护服务器。一次登录，即可使用 **VLESS / Trojan / Shadowsocks 代理面板**、**Outlook 邮箱验证码读取**、**私有网盘**（文件存在你自己的 GitHub 仓库）、**在线状态与安全监控**、**管理后台**，全部通过 service binding、KV 和 D1 连在一起。
 
 > **第一次来？** 先看[从零部署指南](DEPLOY.md)——大约 30–60 分钟，就能在你自己的域名上跑起来。
+> **想让 AI 带你部署？** 把 [AI_DEPLOY.md](AI_DEPLOY.md) 里的提示词复制发给任意 AI 助手，它会一步步带你走完部署。
 
 ---
 
