@@ -10,6 +10,7 @@ English | [简体中文](README.zh-CN.md)
 A **self-hosted personal panel** running entirely on [Cloudflare Workers](https://workers.cloudflare.com/) — no VPS, no Docker, no server to maintain. One login gives you a **VLESS / Trojan / Shadowsocks proxy panel**, an **Outlook verification-code reader**, a **private file drive** (backed by your own GitHub repo), an **uptime & security monitor**, and an **admin dashboard**, all wired together with service bindings, KV and D1.
 
 > **New here?** Start with the [step-by-step deploy guide](DEPLOY.md) — about 30–60 minutes from zero to a running panel on your own domain.
+> **Prefer AI help?** Copy the prompt in [AI_DEPLOY.md](AI_DEPLOY.md) into any AI assistant and let it walk you through the deploy.
 
 ---
 
