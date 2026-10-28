@@ -75,8 +75,31 @@ async function ping(binding, path, key, timeoutMs, check) {
     const ok = res.status >= 200 && res.status < 400 && !err;
     return { up: true, ok, code: res.status, ms: Date.now() - t0, err: err || (ok ? "" : "HTTP " + res.status) };
   } catch (e) {
-    return { up: false, ok: false, code: 0, ms: Date.now() - t0, err: String(e && e.message || e).slice(0, 120) };
+    return { up: false, ok: false, code: 0, ms: Date.now() - t0, err: String(e && e.message || e).slice(0, 120), en: probeErrName(e), cat: probeErrCat(e) };
   } finally { clearTimeout(timer); }
+}
+// Probe failure details (CFNEXT only) -> LOG KV: probe_last + probe_fail (rolling, max 20).
+// Only the error name + a fixed category are stored (never message/stack/headers/secrets).
+// Throttled: write when code/category changes or >= 15 min since the last write (KV write budget).
+function probeErrName(e) { try { const n = e && e.name; return typeof n === "string" && /^[A-Za-z0-9_.-]{1,40}$/.test(n) ? n : "unknown"; } catch (x) { return "unknown"; } }
+function probeErrCat(e) {
+  let m = ""; try { m = String(e && e.message || ""); } catch (x) {}
+  if (/^timeout \d+ms$/.test(m)) return "timeout";
+  if (/script has been killed/i.test(m)) return "script_killed";
+  if (/threw exception|1101/i.test(m)) return "worker_exception";
+  if (/exceeded/i.test(m)) return "limit_exceeded";
+  return "other";
+}
+async function probeRecord(env, r, now) {
+  if (!env.LOG || !r || r.ok) return;
+  const rec = { t: now, code: r.code | 0, ms: r.ms | 0, up: !!r.up, cat: r.up ? (r.code ? "http_" + r.code : "bad_body") : (r.cat || "other"), en: r.up ? "" : (r.en || "unknown") };
+  let last = null; try { last = await env.LOG.get("probe_last", "json"); } catch (e) {}
+  if (last && last.code === rec.code && last.cat === rec.cat && now - (last.t || 0) < 15 * 60000) return;
+  let list = []; try { list = (await env.LOG.get("probe_fail", "json")) || []; } catch (e) {}
+  if (!Array.isArray(list)) list = [];
+  list.unshift(rec); if (list.length > 20) list.length = 20;
+  await env.LOG.put("probe_last", JSON.stringify(rec));
+  await env.LOG.put("probe_fail", JSON.stringify(list));
 }
 const CHK_DRIVE = j => j && j.ok === true && Array.isArray(j.files) ? "" : "网盘接口返回异常：" + String(j && j.error || "").slice(0, 60);
 const CHK_OTP = j => j && j.ok === true && !j.err ? "" : "读取邮箱失败：" + String(j && j.err || "").slice(0, 60);
@@ -260,6 +283,7 @@ async function healthCheck(env) {
   const now = Date.now();
   const [cf, dr, ot] = await pingAll(env, 15000);
   const cur = { cfnext: cf, drive: dr, otp: ot };
+  try { await probeRecord(env, cf, now); } catch (e) { console.log("probe_record failed: " + probeErrName(e)); }
   // Uptime history for the daily report (portal probed over the public hostname; not used for alerts).
   try { const po = await pingUrl("https://panel.example.com/", 10000); po.ok = po.up && po.code >= 200 && po.code < 400; await healthLog(env, Object.assign({ portal: po }, cur), now); } catch (e) { console.log("health_log failed: " + String(e && e.message || e)); }
   let prev = {};
